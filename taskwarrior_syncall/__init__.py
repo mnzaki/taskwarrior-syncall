@@ -18,7 +18,9 @@ from taskwarrior_syncall.app_utils import (
 from taskwarrior_syncall.cli import (
     opt_combination,
     opt_custom_combination_savename,
+    opt_filesystem_root,
     opt_gcal_calendar,
+    opt_gkeep_labels,
     opt_gkeep_note,
     opt_gkeep_passwd_pass_path,
     opt_gkeep_user_pass_path,
@@ -31,6 +33,7 @@ from taskwarrior_syncall.cli import (
     opt_tw_project,
     opt_tw_tags,
 )
+from taskwarrior_syncall.filesystem_side import FilesystemSide
 from taskwarrior_syncall.sync_side import ItemType, SyncSide
 from taskwarrior_syncall.taskwarrior_side import TaskWarriorSide
 
@@ -39,6 +42,7 @@ __all__ = [
     "ItemType",
     "SyncSide",
     "TaskWarriorSide",
+    "FilesystemSide",
     "app_name",
     "cache_or_reuse_cached_combination",
     "fetch_app_configuration",
@@ -62,7 +66,9 @@ __all__ = [
     "opt_notion_token_pass_path",
     "opt_resolution_strategy",
     "opt_tw_project",
+    "opt_filesystem_root",
     "opt_tw_tags",
+    "opt_gkeep_labels",
     "report_toplevel_exception",
 ]
 
@@ -89,6 +95,11 @@ except ImportError:
     )
 
 try:
+    from taskwarrior_syncall.fs_gkeep_utils import (
+        convert_fs_file_to_gkeep_note,
+        convert_gkeep_note_to_fs_file,
+    )
+    from taskwarrior_syncall.google.gkeep_note_side import GKeepNoteSide
     from taskwarrior_syncall.google.gkeep_todo_item import GKeepTodoItem
     from taskwarrior_syncall.google.gkeep_todo_side import GKeepTodoSide
     from taskwarrior_syncall.tw_gkeep_utils import (
@@ -98,10 +109,14 @@ try:
 
     __all__.extend(
         [
-            "GKeepTodoSide",
+            "GKeepNoteSide",
+            "GKeepNoteSide",
             "GKeepTodoItem",
+            "GKeepTodoSide",
             "convert_gkeep_todo_to_tw",
             "convert_tw_to_gkeep_todo",
+            "convert_gkeep_note_to_fs_file",
+            "convert_fs_file_to_gkeep_note",
         ]
     )
 except ImportError:

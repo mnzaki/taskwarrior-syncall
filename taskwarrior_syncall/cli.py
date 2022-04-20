@@ -24,7 +24,7 @@ def opt_tw_tags():
         "--taskwarrior-tags",
         "tw_tags",
         type=str,
-        help="Taskwarrior tags to sync",
+        help="Taskwarrior tags to synchronize",
         multiple=True,
     )
 
@@ -35,14 +35,25 @@ def opt_tw_project():
         "--tw-project",
         "tw_project",
         type=str,
-        help="Taskwarrior project to sync",
+        help="Taskwarrior project to synchronize",
+    )
+
+
+def opt_filesystem_root():
+    return click.option(
+        "--fs",
+        "--fs-root",
+        "filesystem_root",
+        required=True,
+        type=str,
+        help="Directory to consider as root for synchronization operations",
     )
 
 
 def opt_resolution_strategy():
     return click.option(
         "-r",
-        "--resolution_strategy",
+        "--resolution-strategy",
         default="AlwaysSecondRS",
         type=click.Choice(list(name_to_resolution_strategy_type.keys())),
         help="Resolution strategy to use during conflicts",
@@ -78,7 +89,7 @@ def opt_notion_page_id():
         "--notion-page",
         "notion_page_id",
         type=str,
-        help="Page ID of the Notion page to sync",
+        help="Page ID of the Notion page to synchronize",
     )
 
 
@@ -117,7 +128,17 @@ def opt_gcal_calendar():
         "-c",
         "--gcal-calendar",
         type=str,
-        help="Name of the Google Calendar to sync (will be created if not there)",
+        help="Name of the Google Calendar to synchronize (will be created if not there)",
+    )
+
+
+def opt_gkeep_labels():
+    return click.option(
+        "-k",
+        "--gkeep-labels",
+        type=str,
+        multiple=True,
+        help="Google Keep labels whose notes to synchronize",
     )
 
 

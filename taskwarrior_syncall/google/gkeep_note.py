@@ -1,0 +1,3 @@
+class GKeepNote:
+    # TODO
+    pass

@@ -7,7 +7,6 @@ from item_synchronizer.types import ID
 from loguru import logger
 
 
-# GKeepTodoSide
 class GKeepTodoItem(Mapping):
     """Currently a shim for the gkeepapi.node.ListItem.
 

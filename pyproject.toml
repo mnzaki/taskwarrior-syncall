@@ -40,6 +40,7 @@ keywords = [
 tw_gcal_sync = "taskwarrior_syncall.scripts.tw_gcal_sync:main"
 tw_gkeep_sync = "taskwarrior_syncall.scripts.tw_gkeep_sync:main"
 tw_notion_sync = "taskwarrior_syncall.scripts.tw_notion_sync:main"
+fs_gkeep_sync = "taskwarrior_syncall.scripts.fs_gkeep_sync:main"
 
 # end-user dependencies --------------------------------------------------------
 [tool.poetry.dependencies]
