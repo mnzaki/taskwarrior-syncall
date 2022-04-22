@@ -1,7 +1,7 @@
 import pytest
 from bubop.time import format_datetime_tz
 
-from taskwarrior_syncall import GKeepTodoItem, GKeepTodoSide
+from taskwarrior_syncall import GKeepTodoItem
 from taskwarrior_syncall.tw_gkeep_utils import (
     convert_gkeep_todo_to_tw,
     convert_tw_to_gkeep_todo,

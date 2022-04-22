@@ -1,16 +1,19 @@
 import datetime
-from functools import cached_property
+import uuid
 from pathlib import Path
-from typing import Any, Mapping, Sequence
 
+import xattr
 from bubop.fs import FileType
-from bubop.time import is_same_datetime
-from gkeepapi.node import ListItem
 from item_synchronizer.types import ID
-from loguru import logger
+
+from taskwarrior_syncall.concrete_item import ConcreteItem, ItemKey, KeyType
 
 
-class FsFile(Mapping):
+def _generate_uuid() -> str:
+    return str(uuid.uuid4())
+
+
+class FilesystemFile(ConcreteItem):
     """Encode the interaction with a filesystem entity.
 
     This uses the inode of a file as its unique identifier. Only filesystems that use inodes
@@ -19,16 +22,16 @@ class FsFile(Mapping):
     Exposes a similar API to the NotionTodoBlock class.
     """
 
-    _key_names = {
-        "last_modified_date",
-        "contents",
-        "id",
-    }
-
-    _date_key_names = {"last_modified_date"}
+    _attr = "user.syncall.uuid"
 
     def __init__(self, path: Path, contents: str = "", filetype=FileType.FILE):
         """Create a file using the given path and the given contents."""
+        super().__init__(
+            keys=(
+                ItemKey("last_modified_date", KeyType.Date),
+                ItemKey("contents", KeyType.String),
+            )
+        )
 
         if not filetype is FileType.FILE:
             raise NotImplementedError("Only supporting synchronization for raw files.")
@@ -37,9 +40,22 @@ class FsFile(Mapping):
         self._contents = contents
         self._filetype = filetype
 
-    @cached_property
-    def id(self) -> ID:
-        return ID(self._path.stat().st_ino)
+        self._fd = self._path.open()
+
+    def close(self):
+        """Teardown method.
+
+        - Close open file descriptors.
+        """
+        self._fd.write(self._contents)
+        self._fd.close()
+
+    def _assign_id(self):
+        """Embed a UUID in the metadata of the open file."""
+        xattr.setxattr(self._fd, self._attr, _generate_uuid())
+
+    def _id(self) -> ID:
+        return xattr.getxattr(self._fd, self._attr).decode()
 
     @property
     def contents(self):
@@ -53,19 +69,6 @@ class FsFile(Mapping):
     def last_modified_date(self) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(self._path.stat().st_mtime)
 
-    def __getitem__(self, key) -> Any:
-        return getattr(self, key)
-
-    def __iter__(self):
-        for k in self._key_names:
-            yield k
-
-    def __len__(self):
-        return len(self._key_names)
-
     def delete(self) -> None:
+        self.close()
         self._path.unlink()
-
-    def compare(self, other: "FsFile", ignore_keys: Sequence[str] = []) -> bool:
-        """Compare two items, return True if they are considered equal."""
-        raise NotImplementedError()

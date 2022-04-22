@@ -1,29 +1,25 @@
 import datetime
-from typing import Any, Mapping, Sequence
 
-from bubop.time import is_same_datetime
 from gkeepapi.node import ListItem
 from item_synchronizer.types import ID
-from loguru import logger
+
+from taskwarrior_syncall.concrete_item import ConcreteItem, ItemKey, KeyType
 
 
-class GKeepTodoItem(Mapping):
+class GKeepTodoItem(ConcreteItem):
     """Currently a shim for the gkeepapi.node.ListItem.
 
     Exposes a similar API to the NotionTodoBlock class.
     """
 
-    _key_names = {
-        "is_checked",
-        "last_modified_date",
-        "plaintext",
-        "id",
-    }
-
-    _date_key_names = {"last_modified_date"}
-
     def __init__(self, is_checked: bool = False, plaintext: str = ""):
-        super().__init__()
+        super().__init__(
+            keys=(
+                ItemKey("is_checked", KeyType.String),
+                ItemKey("last_modified_date", KeyType.Date),
+                ItemKey("plaintext", KeyType.String),
+            )
+        )
 
         # Embedding the ListItem as a member variable of this. The alternative of inheriting
         # from list item wouldnt' really work as that would require *copying* the ListItem for
@@ -34,8 +30,7 @@ class GKeepTodoItem(Mapping):
         self.is_checked = is_checked
         self.plaintext = plaintext
 
-    @property
-    def id(self) -> ID:
+    def _id(self) -> ID:
         return self._inner.id
 
     @classmethod
@@ -71,36 +66,5 @@ class GKeepTodoItem(Mapping):
         out._inner = list_item
         return out
 
-    def __getitem__(self, key) -> Any:
-        return getattr(self, key)
-
-    def __iter__(self):
-        for k in self._key_names:
-            yield k
-
-    def __len__(self):
-        return len(self._key_names)
-
     def delete(self) -> None:
         self._inner.delete()
-
-    def compare(self, other: "GKeepTodoItem", ignore_keys: Sequence[str] = []) -> bool:
-        """Compare two items, return True if they are considered equal."""
-        for key in self._key_names:
-            if key in ignore_keys:
-                continue
-            elif key in self._date_key_names:
-                if not is_same_datetime(
-                    self[key], other[key], tol=datetime.timedelta(minutes=10)
-                ):
-                    logger.opt(lazy=True).trace(
-                        f"\n\nItems differ\n\nItem1\n\n{self}\n\nItem2\n\n{other}\n\nKey"
-                        f" [{key}] is different - [{repr(self[key])}] | [{repr(other[key])}]"
-                    )
-                    return False
-            else:
-                if self[key] != other[key]:
-                    logger.opt(lazy=True).trace(f"Items differ [{key}]\n\n{self}\n\n{other}")
-                    return False
-
-        return True

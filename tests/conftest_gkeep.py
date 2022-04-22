@@ -1,4 +1,6 @@
 import pytest
+from gkeepapi.node import List as GKeepList
+from gkeepapi.node import Note as GKeepNote
 
 
 @pytest.fixture()
@@ -169,3 +171,14 @@ def gkeep_note():
         ],
         "collaborators": [],
     }
+
+
+@pytest.fixture()
+def gkeep_list_instance0(gkeep_list0) -> GKeepList:
+    li = GKeepList()
+    li.load(gkeep_list0)
+
+    for i in range(5):
+        li.add(f"item {i}")
+
+    return li

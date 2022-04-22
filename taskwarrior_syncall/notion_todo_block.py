@@ -1,65 +1,64 @@
 import datetime
-from dataclasses import dataclass
-from typing import Any, Mapping, Optional, Sequence
+from typing import Optional
 
 from bubop import is_same_datetime, logger, parse_datetime
+from item_synchronizer.types import ID
 
-from taskwarrior_syncall.types import (
-    NotionID,
-    NotionRawItem,
-    NotionTodoBlockItem,
-    NotionTodoSection,
-)
+from taskwarrior_syncall.concrete_item import ConcreteItem, ItemKey, KeyType
+from taskwarrior_syncall.types import NotionRawItem, NotionTodoBlockItem, NotionTodoSection
 
 
-@dataclass
-class NotionTodoBlock(Mapping):
-    is_archived: bool
-    is_checked: bool
-    last_modified_date: datetime.datetime
-    plaintext: str
-    id: Optional[NotionID] = None
+class NotionTodoBlock(ConcreteItem):
+    def __init__(
+        self,
+        is_archived: bool,
+        is_checked: bool,
+        last_modified_date: datetime.datetime,
+        plaintext: str,
+        id: Optional[ID],
+    ):
+        super().__init__(
+            keys=(
+                ItemKey("is_archived", KeyType.String),
+                ItemKey("is_checked", KeyType.String),
+                ItemKey("last_modified_date", KeyType.Date),
+                ItemKey("plaintext", KeyType.String),
+            )
+        )
 
-    _key_names = {
-        "is_archived",
-        "is_checked",
-        "last_modified_date",
-        "plaintext",
-        "id",
-    }
+        self._is_archived = is_archived
+        self._is_checked = is_checked
+        self._last_modified_date = last_modified_date
+        self._plaintext = plaintext
+        self._id_val = id
 
-    _date_key_names = {"last_modified_date"}
+    @property
+    def is_archived(self) -> bool:
+        return self._is_archived
 
-    def compare(self, other: "NotionTodoBlock", ignore_keys: Sequence[str] = []) -> bool:
-        """Compare two items, return True if they are considered equal."""
-        for key in self._key_names:
-            if key in ignore_keys:
-                continue
-            elif key in self._date_key_names:
-                if not is_same_datetime(
-                    self[key], other[key], tol=datetime.timedelta(minutes=10)
-                ):
-                    logger.opt(lazy=True).trace(
-                        f"\n\nItems differ\n\nItem1\n\n{self}\n\nItem2\n\n{other}\n\nKey"
-                        f" [{key}] is different - [{repr(self[key])}] | [{repr(other[key])}]"
-                    )
-                    return False
-            else:
-                if self[key] != other[key]:
-                    logger.opt(lazy=True).trace(f"Items differ [{key}]\n\n{self}\n\n{other}")
-                    return False
+    @is_archived.setter
+    def is_archived(self, val):
+        self._is_archived = val
 
-        return True
+    @property
+    def is_checked(self) -> bool:
+        return self._is_checked
 
-    def __getitem__(self, key) -> Any:
-        return getattr(self, key)
+    @is_checked.setter
+    def is_checked(self, val):
+        self._is_checked = val
 
-    def __iter__(self):
-        for k in self._key_names:
-            yield k
+    @property
+    def last_modified_date(self) -> bool:
+        return self._is_archived
 
-    def __len__(self):
-        return len(self._key_names)
+    @last_modified_date.setter
+    def last_modified_date(self, val):
+        self._last_modified_date = val
+
+    def _id(self) -> ID:
+        # TODO
+        return self._id_val
 
     @classmethod
     def from_raw_item(cls, block_item: NotionTodoBlockItem) -> "NotionTodoBlock":
@@ -80,7 +79,7 @@ class NotionTodoBlock(Mapping):
         last_modified_date = parse_datetime(block_item["last_edited_time"])
         plaintext = cls.get_plaintext(todo_section=block_item["to_do"])
 
-        return NotionTodoBlock(
+        return cls(
             is_archived=is_archived,
             is_checked=is_checked,
             last_modified_date=last_modified_date,

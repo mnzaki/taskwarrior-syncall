@@ -1,6 +1,6 @@
 """__init__"""
 
-
+# global imports ------------------------------------------------------------------------------
 from taskwarrior_syncall.aggregator import Aggregator
 from taskwarrior_syncall.app_utils import (
     app_name,
@@ -33,16 +33,12 @@ from taskwarrior_syncall.cli import (
     opt_tw_project,
     opt_tw_tags,
 )
-from taskwarrior_syncall.filesystem_side import FilesystemSide
 from taskwarrior_syncall.sync_side import ItemType, SyncSide
-from taskwarrior_syncall.taskwarrior_side import TaskWarriorSide
 
 __all__ = [
     "Aggregator",
     "ItemType",
     "SyncSide",
-    "TaskWarriorSide",
-    "FilesystemSide",
     "app_name",
     "cache_or_reuse_cached_combination",
     "fetch_app_configuration",
@@ -72,16 +68,35 @@ __all__ = [
     "report_toplevel_exception",
 ]
 
-# Notion --------------------------------------------------------------------------------------
+# tw ------------------------------------------------------------------------------------------
 try:
-    from taskwarrior_syncall.notion_side import NotionSide
-    from taskwarrior_syncall.tw_notion_utils import convert_notion_to_tw, convert_tw_to_notion
+    from taskwarrior_syncall.taskwarrior_side import TaskWarriorSide
 
-    __all__.extend(["NotionSide", "convert_notion_to_tw", "convert_tw_to_notion"])
+    __all__.extend(
+        [
+            "TaskWarriorSide",
+        ]
+    )
 except ImportError:
     pass
 
-# Gcal ----------------------------------------------------------------------------------------
+# notion --------------------------------------------------------------------------------------
+try:
+    from taskwarrior_syncall.notion_side import NotionSide
+
+    __all__.extend(["NotionSide"])
+except ImportError:
+    pass
+
+# notion <> tw --------------------------------------------------------------------------------
+try:
+    from taskwarrior_syncall.tw_notion_utils import convert_notion_to_tw, convert_tw_to_notion
+
+    __all__.extend(["convert_notion_to_tw", "convert_tw_to_notion"])
+except ImportError:
+    pass
+
+# gcal ----------------------------------------------------------------------------------------
 try:
     from taskwarrior_syncall.google.gcal_side import GCalSide
     from taskwarrior_syncall.tw_gcal_utils import convert_gcal_to_tw, convert_tw_to_gcal
@@ -94,11 +109,9 @@ except ImportError:
         ]
     )
 
+# gkeep ---------------------------------------------------------------------------------------
 try:
-    from taskwarrior_syncall.fs_gkeep_utils import (
-        convert_fs_file_to_gkeep_note,
-        convert_gkeep_note_to_fs_file,
-    )
+    from taskwarrior_syncall.google.gkeep_note import GKeepNote
     from taskwarrior_syncall.google.gkeep_note_side import GKeepNoteSide
     from taskwarrior_syncall.google.gkeep_todo_item import GKeepTodoItem
     from taskwarrior_syncall.google.gkeep_todo_side import GKeepTodoSide
@@ -109,14 +122,12 @@ try:
 
     __all__.extend(
         [
-            "GKeepNoteSide",
+            "GKeepNote",
             "GKeepNoteSide",
             "GKeepTodoItem",
             "GKeepTodoSide",
             "convert_gkeep_todo_to_tw",
             "convert_tw_to_gkeep_todo",
-            "convert_gkeep_note_to_fs_file",
-            "convert_fs_file_to_gkeep_note",
         ]
     )
 except ImportError:
