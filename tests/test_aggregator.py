@@ -2,7 +2,7 @@ from typing import Optional, Sequence
 
 from item_synchronizer.types import ID
 
-from taskwarrior_syncall import ItemType, SyncSide
+from taskwarrior_syncall.sync_side import ItemType, SyncSide
 
 
 class MockSide(SyncSide):

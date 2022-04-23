@@ -19,11 +19,8 @@ except ImportError:
 
 from taskwarrior_syncall import (
     Aggregator,
-    FilesystemSide,
     __version__,
     cache_or_reuse_cached_combination,
-    convert_fs_file_to_gkeep_note,
-    convert_gkeep_note_to_fs_file,
     fetch_app_configuration,
     fetch_from_pass_manager,
     get_resolution_strategy,
@@ -39,6 +36,12 @@ from taskwarrior_syncall import (
     opt_resolution_strategy,
     report_toplevel_exception,
 )
+from taskwarrior_syncall.filesystem_file import FilesystemFile
+from taskwarrior_syncall.filesystem_gkeep_utils import (
+    convert_filesystem_file_to_gkeep_note,
+    convert_gkeep_note_to_filesystem_file,
+)
+from taskwarrior_syncall.filesystem_side import FilesystemSide
 
 
 @click.command()

@@ -7,10 +7,7 @@ from taskwarrior_syncall.concrete_item import ConcreteItem, ItemKey, KeyType
 
 
 class GKeepTodoItem(ConcreteItem):
-    """Currently a shim for the gkeepapi.node.ListItem.
-
-    Exposes a similar API to the NotionTodoBlock class.
-    """
+    """A shim for the gkeepapi.node.ListItem."""
 
     def __init__(self, is_checked: bool = False, plaintext: str = ""):
         super().__init__(

@@ -6,7 +6,7 @@ from taskwarrior_syncall.sync_side import SyncSide
 
 @dataclass
 class SideHelper:
-    """A helper class holding high-level ifno about the SyncSide at hand."""
+    """A helper class holding high-level info about the SyncSide at hand."""
 
     # Name of the side this helper corresponds to
     name: str

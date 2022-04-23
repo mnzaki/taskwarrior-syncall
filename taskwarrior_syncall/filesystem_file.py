@@ -1,61 +1,113 @@
 import datetime
 import uuid
 from pathlib import Path
+from typing import Optional
 
 import xattr
 from bubop.fs import FileType
 from item_synchronizer.types import ID
+from loguru import logger
 
 from taskwarrior_syncall.concrete_item import ConcreteItem, ItemKey, KeyType
 
 
-def _generate_uuid() -> str:
+def _generate_id() -> str:
     return str(uuid.uuid4())
+
+
+def _to_b(s: str) -> bytes:
+    return bytes(s.encode("utf-8"))
+
+
+def _from_b(b: bytes) -> str:
+    return b.decode("utf-8")
 
 
 class FilesystemFile(ConcreteItem):
     """Encode the interaction with a filesystem entity.
 
-    This uses the inode of a file as its unique identifier. Only filesystems that use inodes
-    are supported.
-
-    Exposes a similar API to the NotionTodoBlock class.
+    This encodes a UUID for this file in the file's extended attributes. Only filesystems that
+    support extended attributes are supported.
     """
 
     _attr = "user.syncall.uuid"
 
-    def __init__(self, path: Path, contents: str = "", filetype=FileType.FILE):
+    def __init__(self, path: Path, filetype=FileType.FILE):
         """Create a file using the given path and the given contents."""
         super().__init__(
             keys=(
                 ItemKey("last_modified_date", KeyType.Date),
                 ItemKey("contents", KeyType.String),
+                ItemKey("title", KeyType.String),
             )
         )
+        self._ext = path.suffix
 
         if not filetype is FileType.FILE:
             raise NotImplementedError("Only supporting synchronization for raw files.")
 
         self._path = path
-        self._contents = contents
+        self._contents: str = ""
+        self._title = self._path.stem
+        if self._path.is_file():
+            self._contents = self._path.read_text()
+
         self._filetype = filetype
 
-        self._fd = self._path.open()
+        # flags to check on exit --------------------------------------------------------------
+        self._set_id_on_flush: bool = False
+        self._set_contents_on_flush: bool = False
+        self._set_title_on_flush: bool = False
+        self._set_for_deletion: bool = False
 
-    def close(self):
-        """Teardown method.
+        # get or assign new ID ----------------------------------------------------------------
+        try:
+            self._id_str = self._get_id()
+        except IOError:
+            self._id_str = _generate_id()
+            logger.trace(
+                f"File [{self._title}] doesn't have an ID yet, assigning new ID ->"
+                f" {self._id_str}"
+            )
+            self._set_id_on_flush = True
 
-        - Close open file descriptors.
-        """
-        self._fd.write(self._contents)
-        self._fd.close()
+    def flush(self) -> None:
+        """Teardown method - call this to make changes to the file persistent."""
 
-    def _assign_id(self):
-        """Embed a UUID in the metadata of the open file."""
-        xattr.setxattr(self._fd, self._attr, _generate_uuid())
+        # delete if it's for deletion
+        if self._set_for_deletion:
+            self._path.unlink()
+            self._set_for_deletion = False
+            return
 
-    def _id(self) -> ID:
-        return xattr.getxattr(self._fd, self._attr).decode()
+        # flush contents ----------------------------------------------------------------------
+        if self._set_contents_on_flush:
+            self._set_contents_on_flush = False
+            self._path.write_text(self._contents)
+
+        # flush the title ---------------------------------------------------------------------
+        if self._set_title_on_flush:
+            self._set_title_on_flush = False
+            self._path = self._path.rename(
+                self._path.with_name(self.title).with_suffix(self._ext)
+            )
+            logger.trace(f"Renaming file on disk, new name -> {self._path.name}")
+
+        # flush UUID --------------------------------------------------------------------------
+        if self._set_id_on_flush:
+            self._set_id_on_flush = False
+            self._set_id(self._id_str)
+
+    def _set_id(self, new_id: str) -> None:
+        with self._path.open() as fd:
+            xattr.setxattr(fd, _to_b(self._attr), _to_b(new_id))
+
+    def _get_id(self) -> str:
+        with self._path.open() as fd:
+            return _from_b(xattr.getxattr(fd, _to_b(self._attr)))
+
+    def _id(self) -> Optional[ID]:
+        return self._id_str
 
     @property
     def contents(self):
@@ -64,11 +116,21 @@ class FilesystemFile(ConcreteItem):
     @contents.setter
     def contents(self, new_contents):
         self._contents = new_contents
+        self._set_contents_on_flush = True
+
+    @property
+    def title(self):
+        return self._title
+
+    @title.setter
+    def title(self, new_title):
+        self._title = new_title
+        self._set_title_on_flush = True
 
     @property
     def last_modified_date(self) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(self._path.stat().st_mtime)
 
     def delete(self) -> None:
-        self.close()
-        self._path.unlink()
+        """Mark this file for deletion."""
+        self._set_for_deletion = True

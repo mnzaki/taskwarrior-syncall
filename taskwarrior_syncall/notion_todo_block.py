@@ -15,12 +15,12 @@ class NotionTodoBlock(ConcreteItem):
         is_checked: bool,
         last_modified_date: datetime.datetime,
         plaintext: str,
-        id: Optional[ID],
+        id: Optional[ID] = None,
     ):
         super().__init__(
             keys=(
-                ItemKey("is_archived", KeyType.String),
-                ItemKey("is_checked", KeyType.String),
+                ItemKey("is_archived", KeyType.Boolean),
+                ItemKey("is_checked", KeyType.Boolean),
                 ItemKey("last_modified_date", KeyType.Date),
                 ItemKey("plaintext", KeyType.String),
             )
@@ -49,15 +49,14 @@ class NotionTodoBlock(ConcreteItem):
         self._is_checked = val
 
     @property
-    def last_modified_date(self) -> bool:
-        return self._is_archived
+    def last_modified_date(self) -> datetime.datetime:
+        return self._last_modified_date
 
     @last_modified_date.setter
-    def last_modified_date(self, val):
+    def last_modified_date(self, val: datetime.datetime):
         self._last_modified_date = val
 
-    def _id(self) -> ID:
-        # TODO
+    def _id(self) -> Optional[ID]:
         return self._id_val
 
     @classmethod
@@ -93,6 +92,14 @@ class NotionTodoBlock(ConcreteItem):
         if not {"type", "object"}.issubset(item.keys()) or item["object"] != "block":
             return False
         return item["type"] == "to_do"
+
+    @property
+    def plaintext(self):
+        return self._plaintext
+
+    @plaintext.setter
+    def plaintext(self, val):
+        self._plaintext = val
 
     @classmethod
     def get_plaintext(cls, todo_section: NotionTodoSection):
