@@ -103,8 +103,12 @@ class FilesystemFile(ConcreteItem):
             xattr.setxattr(fd, _to_b(self._attr), _to_b(new_id))
 
     def _get_id(self) -> str:
-        with self._path.open() as fd:
-            return _from_b(xattr.getxattr(fd, _to_b(self._attr)))
+        return self.get_id_of_path(path=self._path)
+
+    @classmethod
+    def get_id_of_path(cls, path: Path) -> ID:
+        with path.open() as fd:
+            return _from_b(xattr.getxattr(fd, _to_b(cls._attr)))
 
     def _id(self) -> Optional[ID]:
         return self._id_str

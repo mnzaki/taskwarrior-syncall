@@ -111,7 +111,7 @@ class TaskWarriorSide(SyncSide):
         if order_by is not None:
             tasks.sort(key=lambda t: t[kargs["order_by"]], reverse=not use_ascending_order)  # type: ignore
 
-        return tasks  # type: ignore
+        return tasks
 
     def get_item(self, item_id: str, use_cached: bool = True) -> Optional[TaskwarriorRawItem]:
         item = self._items_cache.get(item_id)

@@ -138,11 +138,11 @@ class GCalSide(GoogleSide):
     def get_item(self, item_id: str, use_cached: bool = True) -> Optional[dict]:
         item = self._items_cache.get(item_id)
         if not use_cached or item is None:
-            item = self.get_item_refresh(item_id=item_id)
+            item = self._get_item_refresh(item_id=item_id)
 
         return item
 
-    def get_item_refresh(self, item_id: str) -> Optional[dict]:
+    def _get_item_refresh(self, item_id: str) -> Optional[dict]:
         ret = None
         try:
             ret = (
