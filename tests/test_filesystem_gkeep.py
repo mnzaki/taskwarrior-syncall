@@ -32,10 +32,8 @@ def test_convert_fs_file_to_gkeep_note_with_existing_content(
 def test_convert_gkeep_note_to_fs_file_from_empty(
     gkeep_note_empty_instance: GKeepNote, tmpdir
 ):
-    fs_root = Path(tmpdir)
-    out = convert_gkeep_note_to_filesystem_file(
-        gkeep_note_empty_instance, filesystem_root=fs_root
-    )
+    out = convert_gkeep_note_to_filesystem_file(gkeep_note_empty_instance)
+    out.root = Path(tmpdir)
     assert out.title == gkeep_note_empty_instance.title
     assert out.contents == ""
     assert out.id is not None

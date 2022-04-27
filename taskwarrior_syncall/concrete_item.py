@@ -45,8 +45,8 @@ class ConcreteItem(_ConcreteItemMeta):
     def _id(self) -> Optional[str]:
         pass
 
-    def __getitem__(self, key) -> Any:
-        return getattr(self, key)
+    def __getitem__(self, key: ItemKey) -> Any:
+        return getattr(self, key.name)
 
     def __iter__(self) -> Iterator[ItemKey]:
         for k in self._keys:
@@ -70,27 +70,27 @@ class ConcreteItem(_ConcreteItemMeta):
         # the ignore_keys should be given as a Sequence[ItemKey] but until then, whatever keys
         # come in, we convert them to ItemKey.
         ignore_keys_ = []
-        for i, key in enumerate(ignore_keys):
+        for key in ignore_keys:
             if isinstance(key, str):
-                ignore_keys_[i] = self._str_to_key[key]
+                ignore_keys_.append(self._str_to_key[key])
             else:
-                ignore_keys_[i] = key
+                ignore_keys_.append(key)
 
         keys_to_check = self._keys - set(ignore_keys_)
 
         for key in keys_to_check:
             if key.type is KeyType.Date:
                 if not is_same_datetime(
-                    self[key.name], other[key.name], tol=datetime.timedelta(minutes=10)
+                    self[key], other[key], tol=datetime.timedelta(minutes=10)
                 ):
                     logger.opt(lazy=True).trace(
                         f"\n\nItems differ\n\nItem1\n\n{self}\n\nItem2\n\n{other}\n\nKey"
-                        f" [{key.name}] is different - [{repr(self[key.name])}] |"
-                        f" [{repr(other[key.name])}]"
+                        f" [{key.name}] is different - [{repr(self[key])}] |"
+                        f" [{repr(other[key])}]"
                     )
                     return False
             else:
-                if self[key.name] != other[key.name]:
+                if self[key] != other[key]:
                     logger.opt(lazy=True).trace(
                         f"Items differ [{key.name}]\n\n{self}\n\n{other}"
                     )

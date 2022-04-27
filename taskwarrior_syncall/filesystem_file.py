@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import xattr
 from bubop.fs import FileType
@@ -28,12 +28,17 @@ class FilesystemFile(ConcreteItem):
 
     This encodes a UUID for this file in the file's extended attributes. Only filesystems that
     support extended attributes are supported.
+
+    .. note:: None of the changes to the file will be written unless you either call `.flush()`
+              or you handle it via a context manager , in which change `.flush()` will be
+              called automatically on `__exit__`.
     """
 
     _attr = "user.syncall.uuid"
+    _default_ext = ".txt"
 
-    def __init__(self, path: Path, filetype=FileType.FILE):
-        """Create a file using the given path and the given contents."""
+    def __init__(self, path: Union[str, Path], filetype=FileType.FILE):
+        """Create a file under the given apth and using the given contents."""
         super().__init__(
             keys=(
                 ItemKey("last_modified_date", KeyType.Date),
@@ -41,12 +46,13 @@ class FilesystemFile(ConcreteItem):
                 ItemKey("title", KeyType.String),
             )
         )
-        self._ext = path.suffix
-
         if not filetype is FileType.FILE:
             raise NotImplementedError("Only supporting synchronization for raw files.")
 
-        self._path = path
+        path_ = Path(path)
+        self._ext = path_.suffix if path_.suffix else self._default_ext
+
+        self._path = path_.with_suffix(self._ext)
         self._contents: str = ""
         self._title = self._path.stem
         if self._path.is_file():
@@ -70,6 +76,20 @@ class FilesystemFile(ConcreteItem):
                 f" {self._id_str}"
             )
             self._set_id_on_flush = True
+
+    @property
+    def root(self):
+        return self._path.parent
+
+    @root.setter
+    def root(self, new_root: Path):
+        self._path = new_root / self._path.name
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.flush()
 
     def flush(self) -> None:
         """Teardown method - call this to make changes to the file persistent."""
