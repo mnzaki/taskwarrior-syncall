@@ -51,8 +51,6 @@ def test_update_item(fs_side_with_existing_items: FilesystemSide):
     new_title = "Some other title"
     item.contents = new_contents
     item.title = new_title
-    for sth in item:
-        print(sth)
     fs_side.update_item(item_id=id_, **item)
     updated_item = fs_side.get_item(item_id=id_)
     assert updated_item is not None
@@ -61,20 +59,41 @@ def test_update_item(fs_side_with_existing_items: FilesystemSide):
     assert updated_item.title == new_title
 
 
-def test_delete_item():
-    pass
+def test_delete_item(fs_side_with_existing_items: FilesystemSide):
+    fs_side = fs_side_with_existing_items
+    prev_all_items = fs_side.get_all_items()
+    item0, item1 = (item for item in prev_all_items[:2])
+    id0 = item0.id
+    id1 = item1.id
+    assert id0 is not None
+    assert id1 is not None
+    prev_len = len(prev_all_items)
+
+    # do some deletions
+    fs_side.delete_single_item(item_id=id0)
+    fs_side.delete_single_item(item_id=id1)
+    curr_all_items = fs_side.get_all_items()
+    curr_len = len(curr_all_items)
+    assert curr_len == prev_len - 2
+
+    # make sure the items have been deleted
+    assert not item0._path.exists()
+    assert not item1._path.exists()
+
+    # this should be a nop
+    fs_side.finish()
 
 
-def test_finish():
-    pass
+def test_items_are_identical(fs_side_with_existing_items: FilesystemSide):
+    fs_side = fs_side_with_existing_items
+    all_items = fs_side.get_all_items()
+    item0, item1 = (item for item in all_items[:2])
 
+    assert fs_side.items_are_identical(item0, item0)
+    assert not fs_side.items_are_identical(item0, item1)
 
-def test_items_are_identical():
-    pass
-
-
-def test_id_key_and_summary():
-    pass
+    item0.contents = item1.contents
+    assert fs_side.items_are_identical(item0, item1, ignore_keys=["title", "id"])
 
 
 def test_get_all_items(fs_side_with_existing_items: FilesystemSide):
@@ -88,5 +107,18 @@ def test_get_all_items(fs_side_with_existing_items: FilesystemSide):
         assert fs_file.id is not None
 
 
-def test_item_not_in_cache():
-    pass
+def test_item_not_in_cache(fs_side_with_existing_items: FilesystemSide):
+    # create a new FilesystemFile in the root of this side, but don't register it. Make sure
+    # that `get_item()` can find it.
+    fs_side = fs_side_with_existing_items
+    root = fs_side.filesystem_root
+    fs_file = FilesystemFile(path=root / "kalimera")
+    fs_file.contents = "some contents"
+    fs_file.flush()
+    assert fs_file.id is not None
+
+    fs_file_returned = fs_side.get_item(item_id=fs_file.id)
+    assert fs_file_returned is not None
+    assert fs_file_returned.title == fs_file.title
+    assert fs_file_returned.contents == fs_file.contents
+    assert fs_file_returned.id == fs_file.id

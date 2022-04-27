@@ -153,7 +153,11 @@ class FilesystemFile(ConcreteItem):
 
     @property
     def last_modified_date(self) -> datetime.datetime:
-        return datetime.datetime.fromtimestamp(self._path.stat().st_mtime)
+        # TODO Amend this.
+        try:
+            return datetime.datetime.fromtimestamp(self._path.stat().st_mtime)
+        except FileNotFoundError:
+            return datetime.datetime.utcfromtimestamp(0)
 
     def delete(self) -> None:
         """Mark this file for deletion."""

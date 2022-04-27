@@ -45,12 +45,12 @@ class ConcreteItem(_ConcreteItemMeta):
     def _id(self) -> Optional[str]:
         pass
 
-    def __getitem__(self, key: ItemKey) -> Any:
-        return getattr(self, key.name)
+    def __getitem__(self, key: str) -> Any:
+        return getattr(self, key)
 
-    def __iter__(self) -> Iterator[ItemKey]:
+    def __iter__(self) -> Iterator[str]:
         for k in self._keys:
-            yield k
+            yield k.name
 
     def __len__(self):
         return len(self._keys)
@@ -81,16 +81,16 @@ class ConcreteItem(_ConcreteItemMeta):
         for key in keys_to_check:
             if key.type is KeyType.Date:
                 if not is_same_datetime(
-                    self[key], other[key], tol=datetime.timedelta(minutes=10)
+                    self[key.name], other[key.name], tol=datetime.timedelta(minutes=10)
                 ):
                     logger.opt(lazy=True).trace(
                         f"\n\nItems differ\n\nItem1\n\n{self}\n\nItem2\n\n{other}\n\nKey"
-                        f" [{key.name}] is different - [{repr(self[key])}] |"
-                        f" [{repr(other[key])}]"
+                        f" [{key.name}] is different - [{repr(self[key.name])}] |"
+                        f" [{repr(other[key.name])}]"
                     )
                     return False
             else:
-                if self[key] != other[key]:
+                if self[key.name] != other[key.name]:
                     logger.opt(lazy=True).trace(
                         f"Items differ [{key.name}]\n\n{self}\n\n{other}"
                     )

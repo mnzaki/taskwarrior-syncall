@@ -55,6 +55,7 @@ class FilesystemSide(SyncSide):
     def get_item(self, item_id: ID, use_cached: bool = False) -> Optional[FilesystemFile]:
         item = self._items_cache.get(item_id)
         if not use_cached or item is None:
+            logger.trace(f"Couldn't find item {item_id} in cache, fetching from filesystem...")
             item = self._get_item_refresh(item_id=item_id)
 
         return item
@@ -112,7 +113,6 @@ class FilesystemSide(SyncSide):
     def items_are_identical(
         cls, item1: ConcreteItem, item2: ConcreteItem, ignore_keys: Sequence[str] = []
     ) -> bool:
-        ignore_keys_ = ["last_edited_time"]
+        ignore_keys_ = [cls.last_modification_key()]
         ignore_keys_.extend(ignore_keys)
         return item1.compare(item2, ignore_keys=ignore_keys_)
-        return True

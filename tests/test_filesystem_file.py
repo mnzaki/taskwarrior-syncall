@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 
 import xattr
@@ -56,11 +57,16 @@ def test_fs_file_flush_change_title_content(python_path_with_content: Path):
     assert new_path.read_text() == new_contents
 
 
-def test_fs_file_dict_fns(non_existent_python_path):
+def test_fs_file_dict_fns(non_existent_python_path: Path):
     fs_file = FilesystemFile(path=non_existent_python_path)
     assert set(("last_modified_date", "contents", "title", "id")).issubset(
-        key.name for key in fs_file.keys()
+        key for key in fs_file.keys()
     )
+
+    assert fs_file["last_modified_date"].year == 1970
+    assert fs_file["contents"] == ""
+    assert fs_file["title"] == non_existent_python_path.stem
+    assert fs_file["id"] is not None
 
 
 def test_fs_file_delete(python_path_with_content: Path):
