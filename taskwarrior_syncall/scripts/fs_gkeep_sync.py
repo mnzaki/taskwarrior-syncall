@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Sequence
 
 import click
@@ -11,6 +12,7 @@ from bubop import (
 )
 
 from taskwarrior_syncall import inform_about_app_extras
+from taskwarrior_syncall.cli import opt_gkeep_ignore_labels
 
 try:
     from taskwarrior_syncall import GKeepNoteSide
@@ -47,6 +49,7 @@ from taskwarrior_syncall.filesystem_side import FilesystemSide
 @click.command()
 # google keep options -------------------------------------------------------------------------
 @opt_gkeep_labels()
+@opt_gkeep_ignore_labels()
 @opt_gkeep_user_pass_path()
 @opt_gkeep_passwd_pass_path()
 # filesystem options --------------------------------------------------------------------------
@@ -61,6 +64,7 @@ from taskwarrior_syncall.filesystem_side import FilesystemSide
 def main(
     filesystem_root: str,
     gkeep_labels: Sequence[str],
+    gkeep_ignore_labels: Sequence[str],
     gkeep_user_pass_path: str,
     gkeep_passwd_pass_path: str,
     resolution_strategy: str,
@@ -93,16 +97,27 @@ def main(
         return 0
 
     # cli validation --------------------------------------------------------------------------
+    check_optional_mutually_exclusive(gkeep_labels, gkeep_ignore_labels)
     check_optional_mutually_exclusive(combination_name, custom_combination_savename)
-    combination_of_filesystem_root_and_gkeep_labels = any(
+    combination_of_filesystem_root_and_gkeep_labels_and_gkeep_ignore_labels = any(
         [
             filesystem_root,
             gkeep_labels,
+            gkeep_ignore_labels,
         ]
     )
     check_optional_mutually_exclusive(
-        combination_name, combination_of_filesystem_root_and_gkeep_labels
+        combination_name,
+        combination_of_filesystem_root_and_gkeep_labels_and_gkeep_ignore_labels,
     )
+
+    filesystem_root_path = Path(filesystem_root)
+    if not filesystem_root_path.is_dir():
+        logger.error(
+            "An existing directory must be provided for the synchronization ->"
+            f" {filesystem_root_path}"
+        )
+        return 1
 
     # existing combination name is provided ---------------------------------------------------
     if combination_name is not None:
@@ -111,6 +126,7 @@ def main(
         )
         filesystem_root = app_config["filesystem_root"]
         gkeep_labels = app_config["gkeep_labels"]
+        gkeep_ignore_labels = app_config["gkeep_ignore_labels"]
 
     # combination manually specified ----------------------------------------------------------
     else:
@@ -119,6 +135,7 @@ def main(
             config_args={
                 "filesystem_root": filesystem_root,
                 "gkeep_labels": gkeep_labels,
+                "gkeep_ignore_labels": gkeep_ignore_labels,
             },
             config_fname="fs_gkeep_configs",
             custom_combination_savename=custom_combination_savename,
@@ -130,7 +147,8 @@ def main(
             header="Configuration",
             items={
                 "Filesystem Root": filesystem_root,
-                "Google Keep Note": gkeep_labels,
+                "Google Keep Labels": gkeep_labels,
+                "Google Keep Labels to Ignore": gkeep_ignore_labels,
             },
             prefix="\n\n",
             suffix="\n",
@@ -157,20 +175,21 @@ def main(
     # initialize google keep  -----------------------------------------------------------------
     gkeep_side = GKeepNoteSide(
         gkeep_labels=gkeep_labels,
+        gkeep_ignore_labels=gkeep_ignore_labels,
         gkeep_user=gkeep_user,
         gkeep_passwd=gkeep_passwd,
     )
 
     # initialize Filesystem Side --------------------------------------------------------------
-    filesystem_side = FilesystemSide(filesystem_root=filesystem_root)
+    filesystem_side = FilesystemSide(filesystem_root=filesystem_root_path)
 
     # sync ------------------------------------------------------------------------------------
     try:
         with Aggregator(
             side_A=gkeep_side,
             side_B=filesystem_side,
-            converter_B_to_A=convert_fs_file_to_gkeep_note,
-            converter_A_to_B=convert_gkeep_note_to_fs_file,
+            converter_B_to_A=convert_filesystem_file_to_gkeep_note,
+            converter_A_to_B=convert_gkeep_note_to_filesystem_file,
             resolution_strategy=get_resolution_strategy(
                 resolution_strategy,
                 side_A_type=type(gkeep_side),

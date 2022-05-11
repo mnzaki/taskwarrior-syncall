@@ -4,9 +4,9 @@ from typing import MutableMapping, Optional, Sequence
 from item_synchronizer.types import ID
 from loguru import logger
 
-from taskwarrior_syncall.concrete_item import ConcreteItem, ItemKey
+from taskwarrior_syncall.concrete_item import ConcreteItem
 from taskwarrior_syncall.filesystem_file import FilesystemFile
-from taskwarrior_syncall.sync_side import ItemType, SyncSide
+from taskwarrior_syncall.sync_side import SyncSide
 
 
 class FilesystemSide(SyncSide):
@@ -28,7 +28,7 @@ class FilesystemSide(SyncSide):
         return "last_modified_date"
 
     def __init__(self, filesystem_root: Path) -> None:
-        pass
+        super().__init__(name="Fs", fullname="Filesystem")
         self._filesystem_root = filesystem_root
 
         all_items = self.get_all_items()

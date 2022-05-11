@@ -1,5 +1,4 @@
 import datetime
-from typing import Optional, Sequence
 
 from gkeepapi.node import Note
 from item_synchronizer.types import ID
@@ -35,7 +34,12 @@ class GKeepNote(ConcreteItem):
     def from_raw_item(cls, gkeep_raw_item: dict) -> "GKeepNote":
         out = cls()
         out._inner.load(gkeep_raw_item)
+        return out
 
+    @classmethod
+    def from_gkeep_note(cls, note_item: Note) -> "GKeepNote":
+        out = cls()
+        out._inner = note_item
         return out
 
     @property

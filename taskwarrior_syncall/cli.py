@@ -142,6 +142,16 @@ def opt_gkeep_labels():
     )
 
 
+def opt_gkeep_ignore_labels():
+    return click.option(
+        "-i",
+        "--gkeep-ignore-labels",
+        type=str,
+        multiple=True,
+        help="Google Keep labels whose notes will be explicitly ignored",
+    )
+
+
 def opt_gkeep_note():
     return click.option(
         "-k",
