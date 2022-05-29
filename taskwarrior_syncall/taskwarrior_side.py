@@ -197,7 +197,7 @@ class TaskWarriorSide(SyncSide):
     ) -> bool:
         keys = [
             k
-            for k in ["annotations", "description", "due", "status", "uuid"]
+            for k in ["annotations", "description", "scheduled", "due", "status", "uuid"]
             if k not in ignore_keys
         ]
 

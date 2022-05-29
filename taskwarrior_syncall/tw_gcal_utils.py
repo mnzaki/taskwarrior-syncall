@@ -1,5 +1,5 @@
 import traceback
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import List, Optional, Tuple
 from uuid import UUID
 
@@ -8,10 +8,38 @@ from item_synchronizer.types import Item
 
 from taskwarrior_syncall.google.gcal_side import GCalSide
 
-_prefix_title_done_str = "✅"
+_prefix_title_success_str = "✅"
+_prefix_title_failed_str = "❌"
+
+_failed_str = "FAIL"
 
 
-def convert_tw_to_gcal(tw_item: Item) -> Item:
+def _already_has_prefix(gcal_item: Item) -> bool:
+    return gcal_item["summary"].startswith(_prefix_title_success_str) or gcal_item[
+        "summary"
+    ].startswith(_prefix_title_failed_str)
+
+
+def _add_task_prefix_if_not_present(gcal_item: Item):
+    if _already_has_prefix(gcal_item):
+        return
+    if gcal_item["summary"].startswith(_failed_str):
+        _add_failed_prefix(gcal_item)
+    else:
+        _add_success_prefix(gcal_item)
+
+
+def _add_success_prefix(gcal_item: Item):
+    gcal_item["summary"] = f'{_prefix_title_success_str}{gcal_item["summary"]}'
+
+
+def _add_failed_prefix(gcal_item: Item):
+    gcal_item[
+        "summary"
+    ] = f'{_prefix_title_failed_str}{gcal_item["summary"][len(_failed_str)+1:]}'
+
+
+def convert_tw_to_gcal(tw_item: Item, prefer_scheduled_date: bool = False) -> Item:
     """TW -> GCal Converter.
 
     .. note:: Do not convert the ID as that may change either manually or
@@ -25,10 +53,8 @@ def convert_tw_to_gcal(tw_item: Item) -> Item:
 
     # Summary
     gcal_item["summary"] = tw_item["description"]
-    if tw_item["status"] == "completed" and not gcal_item["summary"].startswith(
-        _prefix_title_done_str
-    ):
-        gcal_item["summary"] = f'{_prefix_title_done_str}{gcal_item["summary"]}'
+    if tw_item["status"] == "completed":
+        _add_task_prefix_if_not_present(gcal_item=gcal_item)
 
     # description
     gcal_item["description"] = "IMPORTED FROM TASKWARRIOR\n"
@@ -40,16 +66,30 @@ def convert_tw_to_gcal(tw_item: Item) -> Item:
     for k in ["status", "uuid"]:
         gcal_item["description"] += f"\n* {k}: {tw_item[k]}"
 
+    date_keys = ["scheduled", "due"] if prefer_scheduled_date else ["due", "scheduled"]
     # Handle dates:
-    # - If given due date -> (start=due-1, end=due)
-    # - Else -> (start=entry, end=entry+1)
-    if "due" in tw_item.keys():
-        due_dt_gcal = GCalSide.format_datetime(tw_item["due"])
-        gcal_item["start"] = {
-            "dateTime": GCalSide.format_datetime(tw_item["due"] - timedelta(hours=1))
-        }
-        gcal_item["end"] = {"dateTime": due_dt_gcal}
+    # Walk through the date_keys using the first of them that's present in the item at hand.
+    # For example if the prefered key is `scheduled` use the item["scheduled"] as the prefered
+    # date and create an event with (start=scheduled, end=entry+1).
+    # If the scheduled key is not found, do the same with the due key if that's found
+    #
+    # if none of the above keys work, use the entry key: (start=entry, end=entry+1)
+    for date_key in date_keys:
+        if date_key in date_keys:
+            logger.trace(
+                f'Using "{date_key}" date for {tw_item["uuid"]} for setting the end date of'
+                " the event"
+            )
+            dt_gcal = GCalSide.format_datetime(tw_item[date_key])
+            gcal_item["start"] = {
+                "dateTime": GCalSide.format_datetime(tw_item[date_key] - timedelta(hours=1))
+            }
+            gcal_item["end"] = {"dateTime": dt_gcal}
+            break
     else:
+        logger.trace(
+            f'Using "entry" date for {tw_item["uuid"]} for setting the start date of the event'
+        )
         entry_dt = tw_item["entry"]
         entry_dt_gcal_str = GCalSide.format_datetime(entry_dt)
 
@@ -66,8 +106,12 @@ def convert_tw_to_gcal(tw_item: Item) -> Item:
     return gcal_item
 
 
-def convert_gcal_to_tw(gcal_item: Item) -> Item:
-    """GCal -> TW Converter."""
+def convert_gcal_to_tw(gcal_item: Item, set_scheduled_date=False) -> Item:
+    """GCal -> TW Converter.
+
+    If set_scheduled_date, then it will set the "scheduled" date of the produced TW task
+    instead of the "due" date
+    """
 
     # Parse the description
     annotations, status, uuid = _parse_gcal_item_desc(gcal_item)
@@ -97,15 +141,18 @@ def convert_gcal_to_tw(gcal_item: Item) -> Item:
 
     # Description
     gcal_summary = gcal_item["summary"]
-    if gcal_summary.startswith(_prefix_title_done_str):
-        gcal_summary = gcal_summary[len(_prefix_title_done_str) :]
+    if gcal_summary.startswith(_prefix_title_success_str):
+        gcal_summary = gcal_summary[len(_prefix_title_success_str) :]
     tw_item["description"] = gcal_summary
 
     # don't meddle with the 'entry' field
-    if isinstance(gcal_item["end"], datetime):
-        tw_item["due"] = gcal_item["end"]
+    if set_scheduled_date:
+        date_key = "scheduled"
     else:
-        tw_item["due"] = GCalSide.get_event_time(gcal_item, t="end")
+        date_key = "due"
+
+    logger.debug(f'Setting TW {date_key} date for item {tw_item["uuid"]}')
+    tw_item[date_key] = GCalSide.get_event_time(gcal_item, t="end")
 
     # update time
     if "updated" in gcal_item.keys():
