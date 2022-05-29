@@ -5,6 +5,7 @@ from uuid import UUID
 
 from bubop import logger, parse_datetime
 from taskw import TaskWarrior
+from taskw.fields.duration import DurationField
 from taskw.warrior import TASKRC
 
 from taskwarrior_syncall.sync_side import ItemType, SyncSide
@@ -19,6 +20,8 @@ OrderByType = Literal[
     "status",
     "urgency",
 ]
+
+tw_duration_key = "twgcalsyncduration"
 
 
 def parse_datetime_(dt: Union[str, datetime.datetime]) -> datetime.datetime:
@@ -138,6 +141,12 @@ class TaskWarriorSide(SyncSide):
         for i in unwanted_keys:
             t.pop(i, False)
 
+        # TODO manually convert to string here
+        duration = changes.pop(tw_duration_key)
+        if duration is not None:
+            duration_str = DurationField().serialize(duration)
+            changes[tw_duration_key] = duration_str
+
         # taskwarrior doesn't let you explicitly set the update time.
         # even if you set it it will revert to the time  that you call
         # `tw.task_update`
@@ -197,7 +206,15 @@ class TaskWarriorSide(SyncSide):
     ) -> bool:
         keys = [
             k
-            for k in ["annotations", "description", "scheduled", "due", "status", "uuid"]
+            for k in [
+                "annotations",
+                "description",
+                "scheduled",
+                "due",
+                "status",
+                "uuid",
+                "twgcalsyncduration",
+            ]
             if k not in ignore_keys
         ]
 

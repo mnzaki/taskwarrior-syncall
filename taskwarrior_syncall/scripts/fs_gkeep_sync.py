@@ -28,6 +28,9 @@ from taskwarrior_syncall import (
     get_resolution_strategy,
     inform_about_combination_name_usage,
     list_named_combinations,
+    report_toplevel_exception,
+)
+from taskwarrior_syncall.cli import (
     opt_combination,
     opt_custom_combination_savename,
     opt_filesystem_root,
@@ -36,7 +39,6 @@ from taskwarrior_syncall import (
     opt_gkeep_user_pass_path,
     opt_list_combinations,
     opt_resolution_strategy,
-    report_toplevel_exception,
 )
 from taskwarrior_syncall.filesystem_file import FilesystemFile
 from taskwarrior_syncall.filesystem_gkeep_utils import (

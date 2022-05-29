@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import List
 
 import click
@@ -27,16 +28,20 @@ from taskwarrior_syncall import (
     get_resolution_strategy,
     inform_about_combination_name_usage,
     list_named_combinations,
+    report_toplevel_exception,
+)
+from taskwarrior_syncall.cli import (
     opt_combination,
     opt_custom_combination_savename,
+    opt_default_duration_event_mins,
     opt_gcal_calendar,
     opt_google_oauth_port,
     opt_google_secret_override,
     opt_list_combinations,
+    opt_prefer_scheduled_date,
     opt_resolution_strategy,
     opt_tw_project,
     opt_tw_tags,
-    report_toplevel_exception,
 )
 
 
@@ -53,6 +58,8 @@ from taskwarrior_syncall import (
 @opt_resolution_strategy()
 @opt_combination("TW", "Google Calendar")
 @opt_custom_combination_savename("TW", "Google Calendar")
+@opt_prefer_scheduled_date()
+@opt_default_duration_event_mins()
 @click.option("-v", "--verbose", count=True)
 @click.version_option(__version__)
 def main(
@@ -66,6 +73,8 @@ def main(
     combination_name: str,
     custom_combination_savename: str,
     do_list_combinations: bool,
+    prefer_scheduled_date: bool,
+    default_event_duration_mins: int,
 ):
     """Synchronize calendars from your Google Calendar with filters from Taskwarrior.
 
@@ -132,6 +141,7 @@ def main(
                 "TW Tags": tw_tags,
                 "TW Project": tw_project,
                 "Google Calendar": gcal_calendar,
+                "Prefer scheduled dates": prefer_scheduled_date,
             },
             prefix="\n\n",
             suffix="\n",
@@ -145,13 +155,33 @@ def main(
         calendar_summary=gcal_calendar, oauth_port=oauth_port, client_secret=google_secret
     )
 
+    # take extra arguments into account -------------------------------------------------------
+    def convert_B_to_A(*args, **kargs):
+        return convert_tw_to_gcal(
+            *args,
+            **kargs,
+            prefer_scheduled_date=prefer_scheduled_date,
+            default_event_duration=timedelta(minutes=default_event_duration_mins),
+        )
+
+    convert_B_to_A.__doc__ = convert_tw_to_gcal.__doc__
+
+    def convert_A_to_B(*args, **kargs):
+        return convert_gcal_to_tw(
+            *args,
+            **kargs,
+            set_scheduled_date=prefer_scheduled_date,
+        )
+
+    convert_A_to_B.__doc__ = convert_gcal_to_tw.__doc__
+
     # sync ------------------------------------------------------------------------------------
     try:
         with Aggregator(
             side_A=gcal_side,
             side_B=tw_side,
-            converter_B_to_A=convert_tw_to_gcal,
-            converter_A_to_B=convert_gcal_to_tw,
+            converter_B_to_A=convert_B_to_A,
+            converter_A_to_B=convert_A_to_B,
             resolution_strategy=get_resolution_strategy(
                 resolution_strategy, side_A_type=type(gcal_side), side_B_type=type(tw_side)
             ),

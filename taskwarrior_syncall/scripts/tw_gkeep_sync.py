@@ -29,6 +29,9 @@ from taskwarrior_syncall import (
     get_resolution_strategy,
     inform_about_combination_name_usage,
     list_named_combinations,
+    report_toplevel_exception,
+)
+from taskwarrior_syncall.cli import (
     opt_combination,
     opt_custom_combination_savename,
     opt_gkeep_note,
@@ -38,7 +41,6 @@ from taskwarrior_syncall import (
     opt_resolution_strategy,
     opt_tw_project,
     opt_tw_tags,
-    report_toplevel_exception,
 )
 
 

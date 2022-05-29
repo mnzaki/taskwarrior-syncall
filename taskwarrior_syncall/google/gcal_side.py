@@ -211,6 +211,10 @@ class GCalSide(GoogleSide):
         assert t in ["start", "end"]
         assert t in item.keys(), "'end' key not found in item"
 
+        # sometimes the google calendar api returns this as a datetime
+        if isinstance(item[t], datetime.datetime):
+            return item[t]
+
         dt = GCalSide.parse_datetime(item[t][GCalSide.get_date_key(item[t])])
         return dt
 

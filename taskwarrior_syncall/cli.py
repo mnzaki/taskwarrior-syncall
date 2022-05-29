@@ -9,6 +9,30 @@ from taskwarrior_syncall.app_utils import name_to_resolution_strategy_type
 from taskwarrior_syncall.constants import COMBINATION_FLAGS
 
 
+def opt_default_duration_event_mins():
+    return click.option(
+        "--default-event-duration-mins",
+        "default_event_duration_mins",
+        type=int,
+        help=(
+            f"The default duration of an event that is to be created on Google Calendar [in"
+            f" minutes]"
+        ),
+    )
+
+
+def opt_prefer_scheduled_date():
+    return click.option(
+        "--prefer-scheduled-date",
+        "prefer_scheduled_date",
+        is_flag=True,
+        help=(
+            f'Prefer using the "scheduled" date field instead of the "due" date if the former'
+            f" is available"
+        ),
+    )
+
+
 def opt_list_combinations(name_A: str, name_B: str):
     return click.option(
         "--list-combinations",
