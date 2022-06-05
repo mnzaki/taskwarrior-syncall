@@ -15,6 +15,7 @@ from typing import Any, Mapping, NoReturn, Optional, Sequence, Type, cast
 from urllib.parse import quote
 
 from bubop import PrefsManager, format_list, logger, non_empty, read_gpg_token, valid_path
+from bubop.crypto import write_gpg_token
 from item_synchronizer.resolution_strategy import (
     AlwaysFirstRS,
     AlwaysSecondRS,
@@ -229,10 +230,37 @@ def inform_about_app_extras(extras: Sequence[str]) -> NoReturn:
     sys.exit(1)
 
 
-def fetch_from_pass_manager(password_path: str) -> str:
+def write_to_pass_manager(password_path: str, passwd: str) -> None:
+    """Write a new password to the designated location."""
+    pass_dir = valid_path(os.environ.get("PASSWORD_STORE_DIR", "~/.password-store"))
+    if str(password_path).startswith(str(pass_dir)):
+        path = Path(password_path)
+    else:
+        path = pass_dir / password_path
+    pass_full_path = path.with_suffix(".gpg")
+
+    # determine the recipient for the encryption
+    pass_dir = valid_path(os.environ.get("PASSWORD_STORE_DIR", "~/.password-store"))
+    gpg_id_file = pass_dir / ".gpg-id"
+    if not gpg_id_file.is_file():
+        logger.error(
+            f"Cannot find .gpg-id file under the password store - {pass_dir}\n"
+            "Cannot write to the provided password path "
+            f"in the password store -> {pass_full_path}"
+        )
+        sys.exit(1)
+    pass_owner = gpg_id_file.read_text().rstrip()
+
+    write_gpg_token(p=pass_full_path, token=passwd, recipient=pass_owner)
+
+
+def fetch_from_pass_manager(password_path: str, allow_fail=False) -> Optional[str]:
     """
     Gpg-decrypt and read the contents of a password file. The path should be either relative
     to the password store directory or fullpath.
+
+    If allow_fail=False, and it indeed fails, it will return None. otherwise, allow_fail=True
+    and it fails, it will log an error with the logger and will `sys.exit`.
     """
 
     logger.debug(f"Attempting to read {password_path} from UNIX Password Store...")
@@ -243,18 +271,33 @@ def fetch_from_pass_manager(password_path: str) -> str:
         path = pass_dir / password_path
     pass_full_path = path.with_suffix(".gpg")
 
+    passwd = None
     try:
         passwd = read_gpg_token(pass_full_path)
     except subprocess.CalledProcessError as err:
-        logger.error(
-            "\n".join(
-                [
-                    f"Couldn't read {password_path} from pass\n\nFull path: {pass_full_path}",
-                    non_empty("stdout", err.stdout.decode("utf-8"), join_with=": "),
-                    non_empty("stderr", err.stderr.decode("utf-8"), join_with=": "),
-                ]
+        if not allow_fail:
+            logger.error(
+                "\n".join(
+                    [
+                        f"Couldn't read {password_path} from pass\n\nFull path:"
+                        f" {pass_full_path}",
+                        non_empty("stdout", err.stdout.decode("utf-8"), join_with=": "),
+                        non_empty("stderr", err.stderr.decode("utf-8"), join_with=": "),
+                    ]
+                )
             )
-        )
-        sys.exit(1)
+            sys.exit(1)
 
     return passwd
+
+
+def get_file_unique_id(p: Path) -> str:
+    """Get a unique identifier for the filesystem entity at hand.
+
+    Use a combination of device ID and inode.
+
+    .. todo:: Put it under bubop instead.
+    """
+
+    stat = p.stat()
+    return f"0x{stat.st_dev:02x}/0x{stat.st_ino:02x}"

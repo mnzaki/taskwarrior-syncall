@@ -68,7 +68,6 @@ def opt_filesystem_root():
         "--fs",
         "--fs-root",
         "filesystem_root",
-        required=True,
         type=str,
         help="Directory to consider as root for synchronization operations",
     )
@@ -144,6 +143,16 @@ def opt_gkeep_passwd_pass_path():
         "gkeep_passwd_pass_path",
         help="Path in the UNIX password manager to fetch the Google password from",
         default="gkeepapi/passwd",
+    )
+
+
+def opt_gkeep_token_pass_path():
+    return click.option(
+        "--token",
+        "--token-pass-path",
+        "gkeep_token_pass_path",
+        help="Path in the UNIX password manager to fetch the google keep token from",
+        default="gkeepapi/token",
     )
 
 

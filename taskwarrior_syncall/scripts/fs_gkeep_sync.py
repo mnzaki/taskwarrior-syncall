@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Sequence
+from typing import Optional, Sequence
 
 import click
 from bubop import (
@@ -40,7 +40,8 @@ from taskwarrior_syncall.cli import (
     opt_list_combinations,
     opt_resolution_strategy,
 )
-from taskwarrior_syncall.filesystem_file import FilesystemFile
+from taskwarrior_syncall.app_utils import get_file_unique_id, write_to_pass_manager
+from taskwarrior_syncall.cli import opt_gkeep_token_pass_path
 from taskwarrior_syncall.filesystem_gkeep_utils import (
     convert_filesystem_file_to_gkeep_note,
     convert_gkeep_note_to_filesystem_file,
@@ -54,6 +55,7 @@ from taskwarrior_syncall.filesystem_side import FilesystemSide
 @opt_gkeep_ignore_labels()
 @opt_gkeep_user_pass_path()
 @opt_gkeep_passwd_pass_path()
+@opt_gkeep_token_pass_path()
 # filesystem options --------------------------------------------------------------------------
 @opt_filesystem_root()
 # misc options --------------------------------------------------------------------------------
@@ -64,11 +66,12 @@ from taskwarrior_syncall.filesystem_side import FilesystemSide
 @click.option("-v", "--verbose", count=True)
 @click.version_option(__version__)
 def main(
-    filesystem_root: str,
+    filesystem_root: Optional[str],
     gkeep_labels: Sequence[str],
     gkeep_ignore_labels: Sequence[str],
     gkeep_user_pass_path: str,
     gkeep_passwd_pass_path: str,
+    gkeep_token_pass_path: str,
     resolution_strategy: str,
     verbose: int,
     combination_name: str,
@@ -113,23 +116,24 @@ def main(
         combination_of_filesystem_root_and_gkeep_labels_and_gkeep_ignore_labels,
     )
 
-    filesystem_root_path = Path(filesystem_root)
-    if not filesystem_root_path.is_dir():
-        logger.error(
-            "An existing directory must be provided for the synchronization ->"
-            f" {filesystem_root_path}"
-        )
-        return 1
+    filesystem_root_path = None
+    if filesystem_root is not None:
+        filesystem_root_path = Path(filesystem_root)
+        if not filesystem_root_path.is_dir():
+            logger.error(
+                "An existing directory must be provided for the synchronization ->"
+                f" {filesystem_root_path}"
+            )
+            return 1
 
     # existing combination name is provided ---------------------------------------------------
     if combination_name is not None:
         app_config = fetch_app_configuration(
             config_fname="fs_gkeep_configs", combination=combination_name
         )
-        filesystem_root = app_config["filesystem_root"]
+        filesystem_root_path = app_config["filesystem_root"]
         gkeep_labels = app_config["gkeep_labels"]
         gkeep_ignore_labels = app_config["gkeep_ignore_labels"]
-
     # combination manually specified ----------------------------------------------------------
     else:
         inform_about_config = True
@@ -142,6 +146,9 @@ def main(
             config_fname="fs_gkeep_configs",
             custom_combination_savename=custom_combination_savename,
         )
+
+    # by this point this must be filled either by CLI or from the config file.
+    assert filesystem_root_path is not None
 
     # announce configuration ------------------------------------------------------------------
     logger.info(
@@ -161,7 +168,7 @@ def main(
     # fetch username
     gkeep_user = os.environ.get("GKEEP_USERNAME")
     if gkeep_user is not None:
-        logger.debug("Reading the gkeep username from environment variable...")
+        logger.debug("Reading the gkeep username from environment...")
     else:
         gkeep_user = fetch_from_pass_manager(gkeep_user_pass_path)
     assert gkeep_user
@@ -169,10 +176,17 @@ def main(
     # fetch password
     gkeep_passwd = os.environ.get("GKEEP_PASSWD")
     if gkeep_passwd is not None:
-        logger.debug("Reading the gkeep password from environment variable...")
+        logger.debug("Reading the gkeep password from environment...")
     else:
         gkeep_passwd = fetch_from_pass_manager(gkeep_passwd_pass_path)
     assert gkeep_passwd
+
+    # fetch gkeep token
+    gkeep_token = os.environ.get("GKEEP_TOKEN")
+    if gkeep_token is not None:
+        logger.debug("Reading the gkeep token from environment...")
+    else:
+        gkeep_token = fetch_from_pass_manager(gkeep_token_pass_path, allow_fail=True)
 
     # initialize google keep  -----------------------------------------------------------------
     gkeep_side = GKeepNoteSide(
@@ -180,6 +194,7 @@ def main(
         gkeep_ignore_labels=gkeep_ignore_labels,
         gkeep_user=gkeep_user,
         gkeep_passwd=gkeep_passwd,
+        gkeep_token=gkeep_token,
     )
 
     # initialize Filesystem Side --------------------------------------------------------------
@@ -200,7 +215,7 @@ def main(
             config_fname=combination_name,
             ignore_keys=(
                 (),
-                ("due", "end", "entry", "modified", "urgency"),
+                (),
             ),
         ) as aggregator:
             aggregator.sync()
@@ -210,6 +225,12 @@ def main(
     except:
         report_toplevel_exception(is_verbose=verbose >= 1)
         return 1
+
+    # cache the token
+    token = gkeep_side.get_master_token()
+    if token is not None:
+        logger.debug(f"Caching the gkeep token in pass -> {gkeep_token_pass_path}...")
+        write_to_pass_manager(password_path=gkeep_token_pass_path, passwd=token)
 
     if inform_about_config:
         inform_about_combination_name_usage(combination_name)

@@ -3,6 +3,7 @@ from typing import Optional
 from bubop import logger
 from bubop.exceptions import AuthenticationError
 from gkeepapi import Keep
+from gkeepapi.exception import LoginException
 from gkeepapi.node import Label
 from gkeepapi.node import List as GKeepList
 from gkeepapi.node import TopLevelNode
@@ -11,22 +12,39 @@ from taskwarrior_syncall.sync_side import SyncSide
 
 
 class GKeepSide(SyncSide):
-    def __init__(self, gkeep_user: str, gkeep_passwd: str, **kargs):
+    def __init__(
+        self, gkeep_user: str, gkeep_passwd: Optional[str], gkeep_token: Optional[str], **kargs
+    ):
         self._keep: Keep
         self._gkeep_user = gkeep_user
         self._gkeep_passwd = gkeep_passwd
+        self._gkeep_token = gkeep_token
 
         super().__init__(**kargs)
+
+    def get_master_token(self) -> Optional[str]:
+        """
+        Return a master token. Use it to authenticate in place of a password on subsequent
+        runs.
+        """
+        return self._gkeep_token
 
     def start(self):
         super().start()
         logger.debug("Connecting to Google Keep...")
         self._keep = Keep()
-        success = self._keep.login(self._gkeep_user, self._gkeep_passwd)
-        if not success:
-            raise AuthenticationError(appname="Google Keep")
 
-        logger.debug("Connected to Google Keep.")
+        try:
+            self._keep.resume(self._gkeep_user, self._gkeep_token, state=None, sync=True)
+            logger.info("Logged in using token")
+        except LoginException:
+            if self._gkeep_token is not None:
+                logger.debug("Invalid token, attempting login via username/password...")
+            self._keep.login(self._gkeep_user, self._gkeep_passwd)
+            logger.info("Logged in using username/password")
+
+        # we're logged in, cache the token
+        self._gkeep_token = self._keep.getMasterToken()
 
     def finish(self):
         logger.info("Flushing data to remote Google Keep...")
