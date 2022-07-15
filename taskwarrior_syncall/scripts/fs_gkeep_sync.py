@@ -147,8 +147,13 @@ def main(
             custom_combination_savename=custom_combination_savename,
         )
 
-    # by this point this must be filled either by CLI or from the config file.
-    assert filesystem_root_path is not None
+    if filesystem_root_path is None:
+        logger.error(
+            "You have to provide at least one valid filesystem root path to use for "
+            " synchronization. You can do so either via CLI arguments or by specifying an"
+            " existing saved combination"
+        )
+        sys.exit(1)
 
     # announce configuration ------------------------------------------------------------------
     logger.info(

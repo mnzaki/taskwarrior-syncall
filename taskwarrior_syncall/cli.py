@@ -13,6 +13,7 @@ def opt_default_duration_event_mins():
     return click.option(
         "--default-event-duration-mins",
         "default_event_duration_mins",
+        default=30,
         type=int,
         help=(
             f"The default duration of an event that is to be created on Google Calendar [in"
@@ -68,6 +69,7 @@ def opt_filesystem_root():
         "--fs",
         "--fs-root",
         "filesystem_root",
+        required=False,
         type=str,
         help="Directory to consider as root for synchronization operations",
     )

@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import Sequence
 
 import click
@@ -129,10 +130,12 @@ def main(
 
     # at least one of tw_tags, tw_project should be set ---------------------------------------
     if not tw_tags and not tw_project:
-        raise RuntimeError(
-            "You have to provide at least one valid tag or a valid project ID to use for"
-            " the synchronization"
+        logger.error(
+            "You have to provide at least one valid tag or a valid project ID to use for the"
+            " synchronization. You can do so either via CLI arguments or by specifying an"
+            " existing saved combination"
         )
+        sys.exit(1)
 
     # announce configuration ------------------------------------------------------------------
     logger.info(
